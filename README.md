@@ -19,8 +19,16 @@ ZeroTier networks into EVE-NG labs at Layer 2
 
 ## Building an Image
 
-1. Install Alpine somewhere 
+1. Install Alpine somewhere
+
+    a. Download [virtual ISO](https://alpinelinux.org/downloads/)
+
+    b. Create disk image:
+        
+        /opt/qemu/bin/qemu-img create -f qcow2 virtioa.qcow2 2G
+
+    c. Run `setup-alpine` and select `sys` disk mode
 
 2. Upload the `build.sh` script and run it
 
-3. Save the image state somewhere
+3. Commit and Save the image
