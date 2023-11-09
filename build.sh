@@ -100,6 +100,4 @@ EOF
 
 chmod +x /usr/sbin/join
 
-echo "Step 7: Remove build script"
-
 echo "Finished"
