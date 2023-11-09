@@ -13,7 +13,7 @@ https://dl-cdn.alpinelinux.org/alpine/edge/testing/
 EOF
 
 echo "Step 2: Download apk packages"
-apk add --update alpine-sdk cargo linux-headers openssl-dev
+apk add --update alpine-sdk bridge cargo linux-headers openssl-dev tcpdump
 
 echo "Step 3: Clone and build ZeroTier ${ZEROTIER_VERSION}"
 git clone --quiet https://github.com/zerotier/ZeroTierOne.git /src/zt \
@@ -26,7 +26,36 @@ mkdir -p /var/lib/zerotier-one; \
     ln -s /usr/sbin/zerotier-one /usr/sbin/zerotier-cli;
 rm -rf /src/zt
 
-echo "Step 4: Configure /etc/issue"
+echo "Step 4: Add ZeroTier init scripts"
+cat <<EOF >/etc/init.d/zerotier-one
+#!/sbin/openrc-run
+
+description="ZeroTier One Client"
+
+name="zerotier-one"
+command="/usr/sbin/zerotier-one"
+command_args="-d"
+
+depend() {
+    want net
+}
+EOF
+chmod +x /etc/init.d/zerotier-one
+rc-update add zerotier-one
+
+cat <<EOF >/etc/local.d/zerotier.start
+# Re-start networking after boot finished to fix zerotier bridge
+/etc/init.d/networking restart
+EOF
+chmod +x /etc/local.d/zerotier.start
+rc-update add local
+
+echo "Step 5: Configure /etc/modules-load.d/zerotier.conf"
+cat <<EOF >/etc/modules-load.d/zerotier.conf
+tun
+EOF
+
+echo "Step 6: Configure /etc/issue"
 cat <<EOF >/etc/issue
 ZeroTier Layer 2 Bridge
 -----------------------
@@ -35,7 +64,7 @@ Default credentials: root/root
 
 EOF
 
-echo "Step 5: Configure /etc/motd"
+echo "Step 7: Configure /etc/motd"
 cat <<EOF >/etc/motd
 ZeroTier Bridge
 ===============
@@ -53,26 +82,26 @@ See /etc/network/interfaces for details after join.
 
 EOF
 
-echo "Step 6: Configure join script"
+echo "Step 8: Configure join script"
 cat <<EOF >/usr/sbin/join
 #!/bin/sh
 
-ZT_NET_ID=$1
-ZT_INT=$(ip link show | grep zt | awk '{print $2}' | tr -d ':')
+ZT_NET_ID=\$1
+ZT_INT=\$(ip link show | grep zt | awk '{print \$2}' | tr -d ':')
 BRIDGE_TO_INT=eth1
 
 
-if [ -z "$ZT_INT" ]
+if [ -z "\$ZT_INT" ]
 then
 
-  if [ -z "$1" ]
+  if [ -z "\$1" ]
   then
     read -p "Enter ZeroTier Network ID: " ZT_NET_ID
   fi
 
-  if zerotier-cli join $ZT_NET_ID;
+  if zerotier-cli join \$ZT_NET_ID;
   then
-    ZT_INT=$(ip link show | grep zt | awk '{print $2}' | tr -d ':')
+    ZT_INT=\$(ip link show | grep zt | awk '{print \$2}' | tr -d ':')
   else
     echo "Unable to join ZeroTier network. Exiting."
     exit
@@ -84,11 +113,10 @@ else
 fi
 
 echo "Writing bridge configuration"
-cat <<EOT>> /etc/network/interfaces
-
+cat <<EOT >>/etc/network/interfaces
 auto br0
 iface br0 inet static
-        bridge-ports $ZT_INT $BRIDGE_TO_INT
+        bridge-ports \$ZT_INT \$BRIDGE_TO_INT
         bridge-stp 0
         pre-up /etc/init.d/zerotier-one start && sleep 2
 
@@ -99,5 +127,8 @@ ifup br0
 EOF
 
 chmod +x /usr/sbin/join
+
+echo "Step 9: Clean up build dependencies"
+apk del alpine-sdk linux-headers openssl-dev
 
 echo "Finished"
