@@ -1,0 +1,29 @@
+# ZeroTier Layer 2 Bridge based on Alpine Linux
+# Created by Jonathan Voss <jvoss@onvox.net>
+#
+# Installation Steps
+# ------------------
+# 1) Copy this template to: /opt/unetlab/html/templates/intel/
+# 2) Copy image to: /opt/unetlab/zerotier-bridge-<version>/virtioa.qcow2
+# 3) Fix permissions: /opt/unetlab/wrappers/unl_wrapper -a fixpermissions
+#
+# Bridge eth0 to public internet
+# Bridge eth1 to desired inside network
+# Start node and see MOTD for details
+#
+---
+type: qemu
+name: zerotier-bridge
+description: ZeroTier Bridge
+cpulimit: 1
+url: https://www.zerotier.com/
+icon: sp_edge.png
+cpu: 1
+ram: 128
+ethernet: 2
+eth_format: eth{0}
+console: telnet
+qemu_arch: x86_64
+qemu_version: 2.12.0
+qemu_nic: virtio-net-pci
+qemu_options: -machine type=pc,accel=kvm -vga virtio -usbdevice tablet
